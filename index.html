@@ -84,6 +84,13 @@
     <div id="status">Conectando ao servidor...</div>
   </div>
 
+  <div class="card" style="margin-top:16px;">
+    <div style="font-size:13px;color:#aaa;">
+      Ponte de controle de mouse (script Python local):
+      <span id="statusPonte" style="color:#ef4444;">● desconectada</span>
+    </div>
+  </div>
+
   <video id="preview" autoplay muted playsinline></video>
 
   <script>
@@ -100,6 +107,31 @@
     const preview = document.getElementById('preview');
 
     let localStream = null;
+
+    // Conecta na ponte local (o controle_mouse.py) que realmente move o mouse do sistema
+    let pontePython = null;
+    const statusPonteEl = document.getElementById('statusPonte');
+
+    function conectarPonte() {
+      pontePython = new WebSocket('ws://localhost:8765');
+
+      pontePython.onopen = () => {
+        statusPonteEl.textContent = '● conectada';
+        statusPonteEl.style.color = '#4ade80';
+        log('Conectado ao controle_mouse.py — controle de mouse habilitado.');
+      };
+
+      pontePython.onclose = () => {
+        statusPonteEl.textContent = '● desconectada (script Python não está rodando)';
+        statusPonteEl.style.color = '#ef4444';
+        setTimeout(conectarPonte, 3000); // tenta reconectar
+      };
+
+      pontePython.onerror = () => {
+        pontePython.close();
+      };
+    }
+    conectarPonte();
 
     peer.on('open', (id) => {
       meuIdEl.textContent = id;
@@ -132,6 +164,14 @@
 
         call.on('close', () => log('Espectador desconectou'));
         call.on('error', (err) => log(`Erro na chamada: ${err}`));
+      });
+
+      // Repassa os comandos de mouse do espectador para o script Python local
+      dataConn.on('data', (dados) => {
+        if (!pontePython || pontePython.readyState !== WebSocket.OPEN) return;
+        if (dados && dados.type) {
+          pontePython.send(JSON.stringify(dados));
+        }
       });
     });
 
