@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receptor de Tela</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 30px 16px;
+  }
+  h1 { margin-bottom: 6px; }
+  .sub { color: #888; margin-bottom: 24px; font-size: 14px; }
+  .card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #0f0f0f;
+    color: #fff;
+    font-size: 16px;
+    text-align: center;
+    margin: 12px 0;
+  }
+  button {
+    background: #4ade80;
+    color: #0f0f0f;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+    width: 100%;
+  }
+  button:hover { opacity: 0.9; }
+  #status { margin-top: 16px; font-size: 14px; color: #aaa; }
+  video {
+    width: 100%;
+    max-width: 960px;
+    margin-top: 20px;
+    border-radius: 12px;
+    border: 1px solid #2a2a2a;
+    background: #000;
+  }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .off { background: #555; }
+  .on { background: #4ade80; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+</style>
+</head>
+<body>
+
+  <h1>👁 Receptor de Tela</h1>
+  <p class="sub">Digite o código do transmissor pra assistir</p>
+
+  <div class="card">
+    <input id="idTransmissor" placeholder="Cole o código do transmissor aqui">
+    <button id="btnConectar">Conectar</button>
+    <div id="status"><span class="dot off"></span>Desconectado</div>
+  </div>
+
+  <video id="tela" autoplay playsinline></video>
+
+  <script>
+    const peer = new Peer(); // servidor gratuito público do PeerJS
+    const statusEl = document.getElementById('status');
+    const btn = document.getElementById('btnConectar');
+    const input = document.getElementById('idTransmissor');
+    const video = document.getElementById('tela');
+
+    peer.on('open', () => {
+      statusEl.innerHTML = `<span class="dot off"></span>Pronto para conectar`;
+    });
+
+    peer.on('error', (err) => {
+      statusEl.innerHTML = `<span class="dot off"></span>Erro: ${err.type}`;
+      console.error(err);
+    });
+
+    btn.addEventListener('click', () => {
+      const idAlvo = input.value.trim();
+      if (!idAlvo) return;
+
+      statusEl.innerHTML = `<span class="dot off"></span>Conectando...`;
+
+      // Liga pro transmissor sem enviar stream nenhum (só recebendo)
+      const call = peer.call(idAlvo, new MediaStream());
+
+      call.on('stream', (streamRemoto) => {
+        video.srcObject = streamRemoto;
+        statusEl.innerHTML = `<span class="dot on"></span>Recebendo transmissão ao vivo`;
+      });
+
+      call.on('close', () => {
+        statusEl.innerHTML = `<span class="dot off"></span>Transmissão encerrada`;
+        video.srcObject = null;
+      });
+
+      call.on('error', (err) => {
+        statusEl.innerHTML = `<span class="dot off"></span>Falha ao conectar`;
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>
